@@ -5,52 +5,29 @@
 - 화면, 저장 서버, 15분마다 도는 알림 발송기가 **Cloudflare Workers 하나**에 다 들어 있어요.
 - 개인 사용량이면 **무료 플랜**으로 충분해요. 서버가 잠들지 않아서 알림이 끊기지 않아요.
 
-## 준비물
+## 배포 (처음 한 번, 브라우저만 있으면 돼요)
 
-- PC (맥 또는 윈도우)와 [Node.js](https://nodejs.org) 20 이상
-- [Cloudflare](https://dash.cloudflare.com/sign-up) 무료 계정
+**1. KV 저장소 만들기**
 
-## 배포 (처음 한 번, 10분 정도)
+[Cloudflare 대시보드](https://dash.cloudflare.com) → **Storage & databases → Workers KV → Create instance** → 이름 `questlog` → 만들어진 항목의 **ID**를 복사해서 `wrangler.toml`의 `REPLACE_WITH_KV_ID` 자리에 넣어요.
 
-압축을 푼 폴더에서 터미널을 열고 아래를 순서대로 실행하세요.
+**2. 저장소 연결해서 배포**
 
-**1. 설치하고 로그인**
+대시보드 → **Workers & Pages → Create → Import a repository** → GitHub 연결 → `montajuu/questlog` 선택 → 설정은 그대로 두고 **Deploy**.
+
+배포가 끝나면 `https://questlog.<내계정>.workers.dev` 주소가 나와요. 이후로는 이 저장소에 코드가 올라올 때마다 자동으로 다시 배포돼요.
+
+알림 키는 서버가 처음 실행될 때 스스로 만들어 KV에 보관해요. 따로 설정할 비밀값은 없어요.
+
+<details><summary>PC 터미널로 배포하려면</summary>
 
 ```bash
 npm install
 npx wrangler login
-```
-
-브라우저가 열리면 Cloudflare 로그인 후 허용을 누르세요.
-
-**2. 저장소(KV) 만들기**
-
-```bash
-npx wrangler kv namespace create QUESTLOG
-```
-
-출력된 `id = "..."` 값을 `wrangler.toml`의 `REPLACE_WITH_KV_ID` 자리에 붙여넣으세요.
-
-**3. 알림 키 만들기**
-
-```bash
-npm run vapid
-```
-
-- 출력된 공개키를 `wrangler.toml`의 `REPLACE_WITH_VAPID_PUBLIC_KEY` 자리에 붙여넣으세요.
-- `VAPID_SUBJECT`의 메일 주소를 본인 메일로 바꾸세요.
-- 출력된 `{"kty":"EC",...}` JSON 한 줄은 4단계에서 써요. 다른 곳에 올리거나 공유하지 마세요.
-
-**4. 배포하고 비밀키 넣기**
-
-```bash
+npx wrangler kv namespace create QUESTLOG   # 출력된 id를 wrangler.toml에
 npm run deploy
-npx wrangler secret put VAPID_PRIVATE_JWK
 ```
-
-두 번째 명령이 값을 물어보면 3단계의 JSON 한 줄을 그대로 붙여넣고 엔터를 누르세요.
-
-배포가 끝나면 `https://questlog.<내계정>.workers.dev` 같은 주소가 나와요.
+</details>
 
 ## 아이폰에서 쓰기
 
@@ -81,7 +58,7 @@ iOS 16.4 이상이 필요해요. 안드로이드와 PC 크롬은 홈 화면 추�
 
 ## 수정하고 다시 배포
 
-`public/index.html`(화면)이나 `src/worker.js`(알림 규칙)를 고친 뒤 `npm run deploy`를 실행하면 돼요. 기록은 그대로 남아요.
+`public/index.html`(화면)이나 `src/worker.js`(알림 규칙)를 고쳐서 저장소에 올리면 자동으로 다시 배포돼요. 기록은 그대로 남아요.
 
 ## 파일 구성
 
@@ -91,5 +68,4 @@ public/sw.js               오프라인 실행과 알림 표시
 public/manifest.webmanifest 홈 화면 앱 정보
 src/worker.js              저장 API, 15분 알림 발송기
 src/push.js                웹 푸시 암호화 (외부 라이브러리 없음)
-scripts/gen-vapid.mjs      알림 키 생성
 ```

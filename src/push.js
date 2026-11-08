@@ -66,10 +66,18 @@ export async function vapidHeader(endpoint, publicKeyB64u, privateJwk, subject) 
   return `vapid t=${head}.${body}.${bytesToB64u(sig)}, k=${publicKeyB64u}`;
 }
 
-/** Send one notification. Returns the HTTP status from the push service. */
-export async function sendPush(subscription, data, env) {
+/** Create a new VAPID key pair: { publicKey (base64url raw), privateJwk }. */
+export async function generateVapid() {
+  const kp = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+  const publicKey = bytesToB64u(await crypto.subtle.exportKey("raw", kp.publicKey));
+  const jwk = await crypto.subtle.exportKey("jwk", kp.privateKey);
+  return { publicKey, privateJwk: { kty: jwk.kty, crv: jwk.crv, x: jwk.x, y: jwk.y, d: jwk.d } };
+}
+
+/** Send one notification. vapid: { publicKey, privateJwk, subject }. Returns the push service's HTTP status. */
+export async function sendPush(subscription, data, vapid) {
   const body = await encryptPayload(subscription, JSON.stringify(data));
-  const auth = await vapidHeader(subscription.endpoint, env.VAPID_PUBLIC_KEY, JSON.parse(env.VAPID_PRIVATE_JWK), env.VAPID_SUBJECT || "mailto:questlog@example.com");
+  const auth = await vapidHeader(subscription.endpoint, vapid.publicKey, vapid.privateJwk, vapid.subject);
   const res = await fetch(subscription.endpoint, {
     method: "POST",
     headers: {

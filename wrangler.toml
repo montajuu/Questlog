@@ -8,7 +8,7 @@ directory = "./public"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
 
-# 기록·알림 구독 저장소. README 2단계에서 만든 id로 바꿔주세요.
+# 기록·알림 구독 저장소. Cloudflare에서 만든 KV의 id로 바꿔주세요.
 [[kv_namespaces]]
 binding = "QUESTLOG"
 id = "REPLACE_WITH_KV_ID"
@@ -18,7 +18,5 @@ id = "REPLACE_WITH_KV_ID"
 crons = ["*/15 * * * *"]
 
 [vars]
-# README 3단계: node scripts/gen-vapid.mjs 가 출력한 공개키
-VAPID_PUBLIC_KEY = "REPLACE_WITH_VAPID_PUBLIC_KEY"
-# 알림 서비스가 문제 시 연락할 주소 (본인 메일)
-VAPID_SUBJECT = "mailto:you@example.com"
+# 알림 서비스에 알리는 연락처. 알림 키는 서버가 처음 실행될 때 스스로 만들어 KV에 보관해요.
+VAPID_SUBJECT = "https://github.com/montajuu/questlog"

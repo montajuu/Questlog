@@ -1,4 +1,20 @@
-import { sendPush } from "./push.js";
+import { sendPush, generateVapid } from "./push.js";
+
+// The worker makes its own notification key pair on first use and keeps it in KV,
+// so nobody has to copy a private key around.
+let vapidCache = null;
+async function getVapid(env) {
+  if (vapidCache) return vapidCache;
+  let v = await getJSON(env, "config:vapid", null);
+  if (!v) {
+    v = await generateVapid();
+    await env.QUESTLOG.put("config:vapid", JSON.stringify(v));
+    // KV is eventually consistent: re-read so two first requests settle on one pair
+    v = (await getJSON(env, "config:vapid", null)) || v;
+  }
+  vapidCache = { ...v, subject: env.VAPID_SUBJECT || "https://github.com/montajuu/questlog" };
+  return vapidCache;
+}
 
 const KEY_RE = /^[A-Za-z0-9_-]{20,64}$/;
 const MAX_STATE_BYTES = 900_000;
@@ -30,7 +46,7 @@ export default {
     const url = new URL(req.url);
     if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(req);
 
-    if (url.pathname === "/api/vapid") return json({ key: env.VAPID_PUBLIC_KEY || null });
+    if (url.pathname === "/api/vapid") return json({ key: (await getVapid(env)).publicKey });
 
     const key = userKey(req);
     if (!key) return json({ error: "기기 키가 없거나 형식이 잘못됐어요." }, 401);
@@ -83,6 +99,7 @@ export default {
 };
 
 async function deliver(env, key, subs, messages) {
+  const vapid = await getVapid(env);
   const statuses = [];
   let changed = false;
   const alive = [];
@@ -90,7 +107,7 @@ async function deliver(env, key, subs, messages) {
     let gone = false;
     for (const m of messages) {
       let status = 0;
-      try { status = await sendPush(sub, { url: "/", ...m }, env); } catch (e) { status = -1; }
+      try { status = await sendPush(sub, { url: "/", ...m }, vapid); } catch (e) { status = -1; }
       statuses.push(status);
       if (status === 404 || status === 410) { gone = true; break; }
     }
