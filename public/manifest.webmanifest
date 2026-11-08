@@ -1,0 +1,16 @@
+{
+  "name": "퀘스트로그",
+  "short_name": "퀘스트로그",
+  "description": "습관을 RPG 퀘스트로 — 레벨, 스탯, 불꽃, 독촉 알림",
+  "lang": "ko",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#121014",
+  "theme_color": "#121014",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

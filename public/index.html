@@ -1,0 +1,765 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#121014">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="퀘스트로그">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<title>퀘스트로그</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Chakra+Petch:wght@500;700&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap">
+<style>
+/* Layout: one-column RPG status screen — hero card (level, XP, HP), deadline banner, quest board; tabs swap the board for stats and achievements */
+:root{
+  --bg:#121014; --panel:#1b181e; --panel2:#232027; --line:#2e2a33;
+  --fg:#efe7da; --muted:#8e8693; --dim:#5b5560;
+  --xp:#ff6a1a; --xp-dim:#3a2418; --gold:#f2b33d; --hp:#e5484d; --ok:#3fcf8e;
+  --s-wis:#a78bfa; --s-int:#4cc9f0; --s-str:#ef5350; --s-foc:#3fcf8e; --s-dis:#f2b33d;
+  --display:"Black Han Sans","IBM Plex Sans KR",system-ui,sans-serif;
+  --body:"IBM Plex Sans KR",system-ui,-apple-system,sans-serif;
+  --hud:"Chakra Petch","IBM Plex Sans KR",ui-monospace,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{-webkit-text-size-adjust:100%}
+body{margin:0}
+html,body{background:var(--bg);color:var(--fg)}
+body{font-family:var(--body);font-size:15px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px 96px}
+.wrap{max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+button:focus-visible,input:focus-visible{outline:2px solid var(--xp);outline-offset:2px}
+.num{font-family:var(--hud);font-variant-numeric:tabular-nums}
+
+/* hero */
+.hero{background:radial-gradient(120% 90% at 100% 0%,#2a1a12 0%,transparent 60%),var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px 18px 16px;display:flex;flex-direction:column;gap:12px;position:relative;overflow:hidden}
+.hero-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.pname{font-family:var(--display);font-size:22px;color:var(--muted);display:flex;align-items:center;gap:8px}
+.pname button{font-size:12px;color:var(--dim);font-family:var(--body);padding:2px 6px;border:1px solid var(--line);border-radius:6px}
+.title-chip{font-size:12px;color:var(--gold);letter-spacing:.04em}
+.lvrow{display:flex;align-items:flex-end;gap:14px}
+.lv-label{font-family:var(--hud);font-weight:700;color:var(--gold);font-size:22px;line-height:1}
+.lv{font-family:var(--display);font-size:84px;line-height:.85;color:var(--fg);text-shadow:3px 3px 0 var(--xp)}
+.xp-total{margin-left:auto;text-align:right}
+.xp-total b{display:block;font-family:var(--display);font-size:30px;line-height:1;font-weight:400}
+.xp-total span{font-size:12px;color:var(--muted)}
+.crest{width:64px;height:72px;flex:none}
+.segs{display:grid;grid-template-columns:repeat(20,1fr);gap:3px;height:16px}
+.segs i{background:var(--xp-dim);border-radius:2px;transform:skewX(-14deg)}
+.segs i.on{background:var(--xp);box-shadow:0 0 6px #ff6a1a66}
+.xp-next{font-size:13px;color:var(--muted);display:flex;justify-content:space-between}
+.hud{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;border-top:1px solid var(--line);padding-top:12px}
+.hud div{display:flex;flex-direction:column;gap:4px;min-width:0}
+.hud small{font-size:11px;color:var(--muted);letter-spacing:.06em}
+.hud b{font-family:var(--hud);font-size:20px;display:flex;align-items:center;gap:5px;font-weight:700}
+.hpbar{height:5px;background:#3a1c1e;border-radius:3px;overflow:hidden}
+.hpbar span{display:block;height:100%;background:var(--hp)}
+.flame{color:var(--xp)} .heart{color:var(--hp)} .ticket{color:var(--s-int)}
+
+/* nag banner */
+.nag{border-radius:14px;padding:12px 14px;display:flex;gap:12px;align-items:center;border:1px solid var(--line);background:var(--panel)}
+.nag .ico{width:34px;height:34px;flex:none;border-radius:10px;display:grid;place-items:center;background:var(--panel2)}
+.nag p{margin:0;font-size:14px} .nag strong{display:block;font-size:15px}
+.nag.warn{border-color:#6b3a1c;background:#24170f} .nag.warn .ico{color:var(--xp)}
+.nag.alarm{border-color:#7a2a2d;background:#2a1214;animation:pulse 1.6s ease-in-out infinite} .nag.alarm .ico{color:var(--hp)}
+.nag.clear{border-color:#1f4d38;background:#10211a} .nag.clear .ico{color:var(--ok)}
+@keyframes pulse{50%{box-shadow:0 0 0 4px #e5484d22}}
+
+/* tabs */
+.mainnav{display:grid;grid-template-columns:repeat(3,1fr);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:4px;gap:4px}
+.mainnav button{padding:9px 0;border-radius:9px;font-weight:700;color:var(--muted)}
+.mainnav button[aria-selected="true"]{background:var(--fg);color:var(--bg)}
+.subtabs{display:flex;gap:8px;align-items:center}
+.subtabs button{padding:7px 12px;border-radius:8px;border:1px solid var(--line);font-family:var(--display);font-size:15px;color:var(--muted);display:flex;gap:6px;align-items:center}
+.subtabs button[aria-selected="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.subtabs .add{margin-left:auto;width:40px;height:40px;justify-content:center;font-size:24px;padding:0;color:var(--fg)}
+
+/* quests */
+.list{display:flex;flex-direction:column;gap:10px}
+.q{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.q-head{display:flex;gap:12px;align-items:flex-start}
+.q-icon{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;flex:none;background:var(--panel2)}
+.q-main{flex:1;min-width:0}
+.q-name{font-family:var(--display);font-size:21px;line-height:1.2;text-align:left;padding:0;word-break:keep-all}
+.q-meta{display:flex;flex-wrap:wrap;gap:4px 10px;color:var(--muted);font-size:12.5px;margin-top:4px;align-items:center}
+.q-meta .sep{width:1px;height:10px;background:var(--line)}
+.bars{display:inline-flex;gap:2px;align-items:flex-end;height:10px;margin-right:3px}
+.bars i{width:3px;background:var(--dim);border-radius:1px}.bars i:nth-child(1){height:4px}.bars i:nth-child(2){height:7px}.bars i:nth-child(3){height:10px}
+.bars i.on{background:var(--fg)}
+.up{color:var(--ok);font-weight:700}
+.q-xp{font-family:var(--hud);font-weight:700;color:var(--gold);font-size:14px;white-space:nowrap}
+.q-actions{display:flex;gap:8px}
+.btn-clear{flex:1;background:var(--xp);color:#1a0d05;font-weight:700;border-radius:10px;padding:11px;font-size:15px}
+.btn-clear:active{transform:translateY(1px)}
+.btn-ghost{border:1px solid var(--line);border-radius:10px;padding:10px 14px;color:var(--muted);font-size:14px}
+.btn-ghost:disabled{opacity:.4;cursor:not-allowed}
+.q.done{opacity:.72}
+.q.done .q-name{text-decoration:line-through;text-decoration-color:var(--xp)}
+.late{color:var(--hp);font-weight:700}
+.empty{color:var(--muted);text-align:center;padding:26px 10px;border:1px dashed var(--line);border-radius:14px}
+
+/* starter */
+.starter{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.starter h2{font-family:var(--display);font-weight:400;font-size:24px;margin:0;text-wrap:balance}
+.starter p{margin:0;color:var(--muted);font-size:14px}
+.pick{display:flex;gap:10px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:12px;text-align:left;width:100%}
+.pick[aria-pressed="true"]{border-color:var(--xp);background:#24170f}
+.pick .box{width:20px;height:20px;border-radius:6px;border:2px solid var(--dim);flex:none;display:grid;place-items:center}
+.pick[aria-pressed="true"] .box{background:var(--xp);border-color:var(--xp);color:#1a0d05}
+.pick span.t{flex:1;min-width:0}
+.pick small{display:block;color:var(--muted);font-size:12px}
+
+/* stats */
+.statrow{display:flex;align-items:center;gap:12px;padding:14px 4px;border-bottom:1px solid var(--line)}
+.statrow .nm{font-size:16px;letter-spacing:.2em;font-weight:700}
+.statrow .ln{flex:1;height:1px;background:var(--line)}
+.statrow .val{font-family:var(--display);font-size:44px;line-height:1}
+.statrow .gain{font-size:11px;color:var(--ok);font-family:var(--hud);width:42px;text-align:right}
+.sec-h{font-family:var(--display);font-size:20px;margin:18px 0 8px;font-weight:400}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px;min-width:0}
+.tile small{display:block;color:var(--muted);font-size:11px}
+.tile b{font-family:var(--hud);font-size:22px}
+.heatwrap{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}
+.heat{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,13px);gap:3px;width:max-content}
+.heat i{width:13px;height:13px;border-radius:3px;background:var(--panel2)}
+.heat i.l1{background:#5a2c12}.heat i.l2{background:#9a4415}.heat i.l3{background:#d95a17}.heat i.l4{background:var(--xp)}
+.heat i.miss{background:#3a1c1e}.heat i.today{outline:1.5px solid var(--fg)}
+.legend{display:flex;gap:10px;font-size:11px;color:var(--muted);margin-top:8px;align-items:center;flex-wrap:wrap}
+.legend i{width:10px;height:10px;border-radius:2px;display:inline-block;vertical-align:-1px;margin-right:3px}
+.qstat{display:grid;grid-template-columns:1fr auto;gap:4px 10px;padding:12px 0;border-bottom:1px solid var(--line)}
+.qstat .n{font-weight:700;min-width:0}
+.qstat .r{font-family:var(--hud);font-weight:700}
+.qstat .bar{grid-column:1/-1;height:6px;background:var(--panel2);border-radius:3px;overflow:hidden}
+.qstat .bar span{display:block;height:100%;background:var(--xp)}
+.qstat .sub{grid-column:1/-1;font-size:12px;color:var(--muted)}
+
+/* achievements */
+.badges{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.badge{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 8px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
+.badge svg{width:34px;height:34px}
+.badge b{font-size:13px}.badge small{font-size:11px;color:var(--muted);line-height:1.3}
+.badge.off{opacity:.38;filter:grayscale(1)}
+.badge.on{border-color:#5a4415}
+.ranks{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.ranks div{text-align:center;padding:8px 0;border-radius:10px;border:1px solid var(--line);font-family:var(--hud);font-weight:700}
+.ranks div small{display:block;font-size:10px;color:var(--muted);font-weight:500}
+.ranks div.cur{background:var(--xp);color:#1a0d05;border-color:var(--xp)}.ranks div.cur small{color:#1a0d05}
+.ev{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px}
+.ev time{color:var(--dim);font-family:var(--hud);font-size:12px;width:44px;flex:none;padding-top:2px}
+.rules{color:var(--muted);font-size:13px;margin:0;padding-left:18px}
+.rules li{margin:3px 0}
+
+/* sheet */
+.scrim{position:fixed;inset:0;background:#000a;z-index:20;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--panel);border:1px solid var(--line);border-bottom:0;border-radius:18px 18px 0 0;width:100%;max-width:520px;max-height:88vh;overflow:auto;
+  padding:18px max(18px,env(safe-area-inset-right,0px)) calc(18px + env(safe-area-inset-bottom,0px)) max(18px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:14px}
+.sheet h3{margin:0;font-family:var(--display);font-weight:400;font-size:22px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field>label,.field>span{font-size:12px;color:var(--muted);letter-spacing:.04em}
+.field input[type=text],.field input[type=number],.field input[type=time]{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:11px 12px;color:var(--fg);font:inherit;width:100%;min-width:0}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);border-radius:999px;padding:7px 12px;font-size:14px;color:var(--muted);display:inline-flex;gap:6px;align-items:center}
+.chip[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.days .chip{width:38px;height:38px;padding:0;justify-content:center}
+.toggle{display:flex;gap:10px;align-items:flex-start;font-size:14px}
+.toggle input{width:20px;height:20px;accent-color:var(--xp);margin-top:2px}
+.toggle small{display:block;color:var(--muted);font-size:12px}
+.sheet-actions{display:flex;gap:8px}
+.btn-del{color:var(--hp);border-color:#4a2225}
+.err{color:var(--hp);font-size:13px;margin:0}
+
+/* fx */
+.float{position:fixed;left:50%;top:38%;transform:translate(-50%,0);font-family:var(--display);font-size:40px;color:var(--gold);text-shadow:2px 2px 0 #000;pointer-events:none;z-index:30;animation:rise 1.1s ease-out forwards}
+@keyframes rise{from{opacity:0;transform:translate(-50%,20px) scale(.8)}20%{opacity:1;transform:translate(-50%,0) scale(1.1)}to{opacity:0;transform:translate(-50%,-60px)}}
+.lvup{position:fixed;inset:0;z-index:40;display:grid;place-items:center;background:radial-gradient(circle,#ff6a1a55,#000c 70%);pointer-events:none;animation:fade 2.2s ease forwards}
+.lvup div{text-align:center}
+.lvup b{display:block;font-family:var(--display);font-size:56px;color:var(--fg);text-shadow:4px 4px 0 var(--xp);line-height:1}
+.lvup span{font-family:var(--hud);font-weight:700;color:var(--gold);letter-spacing:.3em}
+@keyframes fade{0%{opacity:0}10%,75%{opacity:1}to{opacity:0}}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:700;font-size:14px;z-index:35;max-width:calc(100% - 32px)}
+.sync{font-size:11px;color:var(--dim);text-align:center}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-wis" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M3 5h6a3 3 0 0 1 3 3v12a2.5 2.5 0 0 0-2.5-2.5H3zM21 5h-6a3 3 0 0 0-3 3v12a2.5 2.5 0 0 1 2.5-2.5H21z"/></symbol>
+    <symbol id="i-int" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3.5 3.5 3.5 14.5 0 18M12 3c-3.5 3.5-3.5 14.5 0 18"/></g></symbol>
+    <symbol id="i-str" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M3 10v4M6.5 7v10M17.5 7v10M21 10v4M6.5 12h11"/></symbol>
+    <symbol id="i-foc" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/></g><circle cx="12" cy="12" r="1.8" fill="currentColor"/></symbol>
+    <symbol id="i-dis" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M12 3l7.5 3v6c0 4.4-3.2 7.6-7.5 9.5C7.7 19.6 4.5 16.4 4.5 12V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></g></symbol>
+    <symbol id="i-flame" viewBox="0 0 24 24"><path fill="currentColor" d="M12.5 2c.6 3.4 5.5 5.6 5.5 11.2A6 6 0 0 1 6 13.5c0-2.3 1-3.7 2.4-4.8 0 2.1 1 3.4 2.3 3.6-.5-3.5.1-7.3 1.8-10.3z"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24"><path fill="currentColor" d="M12 21s-8.5-5.2-8.5-11.3A4.7 4.7 0 0 1 12 6.6a4.7 4.7 0 0 1 8.5 3.1C20.5 15.8 12 21 12 21z"/></symbol>
+    <symbol id="i-ticket" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M3 7h18v3a2 2 0 0 0 0 4v3H3v-3a2 2 0 0 0 0-4z"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4zM10 20.5a2.2 2.2 0 0 0 4 0"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2.5l2.9 6.2 6.7.8-5 4.6 1.4 6.7L12 17.4l-6 3.4 1.4-6.7-5-4.6 6.7-.8z"/></symbol>
+  </defs>
+</svg>
+
+<div class="wrap" id="app"></div>
+<div class="sync" id="sync"></div>
+
+<script>
+(() => {
+const STATS = {
+  wis:{name:"지혜", color:"var(--s-wis)", hint:"독서·뉴스"},
+  int:{name:"지식", color:"var(--s-int)", hint:"공부·언어"},
+  str:{name:"힘",   color:"var(--s-str)", hint:"운동"},
+  foc:{name:"집중", color:"var(--s-foc)", hint:"몰입·업무"},
+  dis:{name:"규율", color:"var(--s-dis)", hint:"루틴·회고"}
+};
+const DIFF = {
+  easy:{name:"쉬움", xp:10, w:1, n:1},
+  mid: {name:"중간", xp:20, w:2, n:2},
+  hard:{name:"어려움", xp:35, w:3, n:3}
+};
+const DOW = ["일","월","화","수","목","금","토"];
+const RANKS = [["E",1],["D",5],["C",10],["B",20],["A",35],["S",50]];
+const TITLES = [[1,"견습 모험가"],[5,"수련생"],[10,"탐험가"],[20,"기사"],[35,"마스터"],[50,"전설"]];
+const SKIPS_PER_WEEK = 2, MISS_HP = 15, DONE_HP = 5, FAINT_XP = 100;
+
+const STARTERS = [
+  {name:"영어 공부", stat:"int", diff:"mid", days:[0,1,2,3,4,5,6], target:15, unit:"분", growth:true, time:"21:00"},
+  {name:"스페인어 Anki", stat:"int", diff:"mid", days:[0,1,2,3,4,5,6], target:15, unit:"분", growth:true, time:"21:30"},
+  {name:"책 읽기", stat:"wis", diff:"easy", days:[0,1,2,3,4,5,6], target:1, unit:"페이지", growth:true, time:"23:00"},
+  {name:"뉴스 읽기", stat:"wis", diff:"easy", days:[0,1,2,3,4,5,6], target:1, unit:"꼭지", growth:false, time:"08:30"},
+  {name:"헬스", stat:"str", diff:"hard", days:[1,3,5], target:null, unit:"", growth:false, time:"19:30"},
+  {name:"KPT 회고", stat:"dis", diff:"easy", days:[0,1,2,3,4,5,6], target:null, unit:"", growth:false, time:"22:30"}
+];
+
+/* ---------- dates ---------- */
+const pad = n => String(n).padStart(2,"0");
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const parse = s => { const [y,m,d] = s.split("-").map(Number); return new Date(y,m-1,d); };
+const addDays = (d,n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
+const monday = d => addDays(d, -((d.getDay()+6)%7));
+const todayStr = () => ymd(new Date());
+
+/* ---------- state ---------- */
+const LS_KEY = "questlog.v1", KEY_KEY = "questlog.key";
+const blank = () => ({v:1, name:"상연", quests:[], log:{}, tz:"Asia/Seoul", notify:{enabled:true, questTimes:true, deadline:true}, updatedAt:""});
+let state = blank();
+try { const raw = localStorage.getItem(LS_KEY); if (raw) state = Object.assign(blank(), JSON.parse(raw)); } catch(e){}
+try { state.tz = Intl.DateTimeFormat().resolvedOptions().timeZone || state.tz; } catch(e){}
+let ui = {tab:"quest", sub:"todo", picks:new Set(STARTERS.map((_,i)=>i))};
+let saveTimer = null, syncMsg = "", online = false;
+
+function deviceKey(){
+  let k = null;
+  try { k = localStorage.getItem(KEY_KEY); } catch(e){}
+  if (!k || !/^[A-Za-z0-9_-]{20,64}$/.test(k)){
+    const b = crypto.getRandomValues(new Uint8Array(18));
+    k = btoa(String.fromCharCode(...b)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+    try { localStorage.setItem(KEY_KEY, k); } catch(e){}
+  }
+  return k;
+}
+let KEY = deviceKey();
+const api = (path, opt={}) => fetch(path, {...opt, headers:{"content-type":"application/json","x-questlog-key":KEY, ...(opt.headers||{})}});
+
+function save(){
+  state.updatedAt = new Date().toISOString();
+  const json = JSON.stringify(state);
+  try { localStorage.setItem(LS_KEY, json); } catch(e){}
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(upload, 300);
+}
+async function upload(){
+  try {
+    const res = await api("/api/state", {method:"PUT", body: JSON.stringify(state)});
+    if (res.status === 409){ const {state: s} = await res.json(); adopt(s); setSync("다른 기기의 최신 기록을 불러왔어요"); return; }
+    if (!res.ok) throw new Error(res.status);
+    online = true; setSync("서버에 저장됨");
+  } catch(e){ online = false; setSync("오프라인 — 연결되면 다시 저장해요"); }
+}
+function adopt(s){
+  if (!s || !Array.isArray(s.quests)) return;
+  state = Object.assign(blank(), s);
+  try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch(e){}
+  if (!sheetEl) render();
+}
+async function pull(){
+  try {
+    const res = await api("/api/state");
+    if (!res.ok) throw new Error(res.status);
+    const s = await res.json();
+    online = true;
+    if (!s){ if (state.quests.length) upload(); else setSync("서버 연결됨"); return; }
+    if ((s.updatedAt||"") > (state.updatedAt||"")) adopt(s);
+    else if ((s.updatedAt||"") < (state.updatedAt||"")) upload();
+    setSync("서버와 동기화됨");
+  } catch(e){ online = false; setSync("오프라인 — 이 기기에 저장 중"); }
+}
+function setSync(m){ syncMsg = m; const el = document.getElementById("sync"); if (el) el.textContent = m; }
+
+/* ---------- engine: everything derives from the log ---------- */
+function compute(){
+  const today = todayStr(), tDate = parse(today);
+  const quests = state.quests;
+  const r = {xp:0, hp:100, dayStreak:0, bestDay:0, totalDone:0, totalMiss:0, totalSkip:0, hardDone:0,
+    stats:{wis:0,int:0,str:0,foc:0,dis:0}, statsWeek:{wis:0,int:0,str:0,foc:0,dis:0},
+    q:{}, heat:{}, events:[], perfectDays:0, faints:0, growths:0, todayList:[], d30:{done:0,miss:0}};
+  if (!quests.length) return finish(r);
+  let start = quests.reduce((m,q)=> q.created < m ? q.created : m, today);
+  const weekStart = ymd(monday(tDate)), d30start = ymd(addDays(tDate,-30));
+  quests.forEach(q => r.q[q.id] = {streak:0,best:0,done:0,miss:0,skip:0,target:q.target,wDone:0,wSched:0,wSkip:0,grewOn:null,d30d:0,d30m:0});
+
+  for (let d = parse(start); ymd(d) <= today; d = addDays(d,1)){
+    const ds = ymd(d), dow = d.getDay(), isToday = ds === today;
+    if (dow === 1){
+      quests.forEach(q => {
+        const s = r.q[q.id], elig = s.wSched - s.wSkip;
+        if (q.growth && q.target && elig >= 2 && s.wDone/elig >= 0.8){
+          const nt = Math.max(s.target+1, Math.ceil(s.target*1.1));
+          r.events.push({d:ds, t:`'${q.name}' 난이도 상승: ${s.target} → ${nt}${q.unit||""}`, k:"grow"});
+          s.target = nt; s.grewOn = ds; r.growths++;
+        }
+        s.wDone = s.wSched = s.wSkip = 0;
+      });
+    }
+    let sched=0, done=0, miss=0;
+    const dayLog = state.log[ds] || {};
+    quests.forEach(q => {
+      if (q.created > ds) return;
+      if (q.archivedAt && ds >= q.archivedAt) return;
+      if (!q.days.includes(dow)) return;
+      const s = r.q[q.id], st = dayLog[q.id], base = DIFF[q.diff].xp;
+      sched++; s.wSched++;
+      if (st === "done"){
+        s.streak++; s.best = Math.max(s.best, s.streak); s.done++; s.wDone++; done++;
+        const gain = base + Math.round(base*0.05*Math.min(s.streak-1,10));
+        r.xp += gain; r.hp = Math.min(100, r.hp + DONE_HP);
+        r.stats[q.stat] += DIFF[q.diff].w; if (ds >= weekStart) r.statsWeek[q.stat] += DIFF[q.diff].w;
+        r.totalDone++; if (q.diff==="hard") r.hardDone++;
+        if (ds >= d30start && !isToday) s.d30d++, r.d30.done++;
+        if (isToday) r.todayList.push({q, st:"done", gain, target:s.target});
+      } else if (st === "skip"){
+        s.skip++; s.wSkip++; r.totalSkip++;
+        if (isToday) r.todayList.push({q, st:"skip", target:s.target});
+      } else if (!isToday){
+        s.miss++; s.streak = 0; miss++; r.totalMiss++;
+        if (ds >= d30start) s.d30m++, r.d30.miss++;
+        r.hp -= MISS_HP;
+        if (r.hp <= 0){ r.xp = Math.max(0, r.xp - FAINT_XP); r.hp = 50; r.faints++; r.events.push({d:ds, t:`HP 0 — 쓰러짐. XP −${FAINT_XP}`, k:"faint"}); }
+      } else {
+        const nextGain = base + Math.round(base*0.05*Math.min(s.streak,10));
+        r.todayList.push({q, st:"todo", gain:nextGain, target:s.target});
+      }
+    });
+    if (miss && !isToday) r.events.push({d:ds, t:`퀘스트 ${miss}개 놓침 · HP −${miss*MISS_HP}`, k:"miss"});
+    if (sched && done === sched && !isToday) r.perfectDays++;
+    if (sched) r.heat[ds] = {ratio: done/sched, miss: miss>0 && done===0};
+    if (!isToday){
+      if (sched){ if (done) r.dayStreak++; else if (miss) r.dayStreak = 0; }
+      r.bestDay = Math.max(r.bestDay, r.dayStreak);
+    } else if (done){ r.dayStreak++; r.bestDay = Math.max(r.bestDay, r.dayStreak); if (sched===done) r.perfectToday = true; }
+  }
+  r.skipsLeft = SKIPS_PER_WEEK - Object.entries(state.log).filter(([d])=>d>=weekStart).reduce((n,[,o])=>n+Object.values(o).filter(v=>v==="skip").length,0);
+  return finish(r);
+}
+const need = L => 60 + 20*L;
+function finish(r){
+  let L = 1, rem = r.xp; while (rem >= need(L)){ rem -= need(L); L++; }
+  r.level = L; r.into = rem; r.need = need(L);
+  r.rank = RANKS.filter(x => L >= x[1]).pop()[0];
+  r.title = TITLES.filter(x => L >= x[0]).pop()[1];
+  return r;
+}
+
+/* ---------- helpers ---------- */
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const icon = (id, size=20, color="currentColor") => `<svg width="${size}" height="${size}" style="color:${color}" aria-hidden="true"><use href="#i-${id}"/></svg>`;
+const daysLabel = days => days.length===7 ? "매일" : (days.length===5 && [1,2,3,4,5].every(x=>days.includes(x))) ? "평일" : (days.length===2 && days.includes(0)&&days.includes(6)) ? "주말" : [1,2,3,4,5,6,0].filter(x=>days.includes(x)).map(x=>DOW[x]).join("·");
+const bars = n => `<span class="bars">${[1,2,3].map(i=>`<i class="${i<=n?"on":""}"></i>`).join("")}</span>`;
+const uid = () => Math.random().toString(36).slice(2,9);
+function crest(rank){
+  return `<svg class="crest" viewBox="0 0 64 72" aria-label="랭크 ${rank}">
+    <path d="M32 3l27 15v36L32 69 5 54V18z" fill="var(--panel2)" stroke="var(--xp)" stroke-width="2.5"/>
+    <path d="M32 11l20 11v28L32 61 12 50V22z" fill="none" stroke="var(--line)" stroke-width="1.5"/>
+    <text x="32" y="46" text-anchor="middle" font-family="Chakra Petch, monospace" font-weight="700" font-size="30" fill="var(--fg)">${rank}</text>
+    <text x="32" y="64" text-anchor="middle" font-family="Chakra Petch, monospace" font-size="7" fill="var(--muted)" letter-spacing="2">RANK</text></svg>`;
+}
+
+/* ---------- render ---------- */
+const app = document.getElementById("app");
+function render(){
+  const r = compute();
+  let html = hero(r) + pushCard() + nag(r) + `
+  <nav class="mainnav" role="tablist">
+    ${[["quest","퀘스트"],["stats","스탯"],["ach","업적"]].map(([k,l])=>`<button role="tab" aria-selected="${ui.tab===k}" data-tab="${k}">${l}</button>`).join("")}
+  </nav>`;
+  if (!state.quests.filter(q=>!q.archivedAt).length && ui.tab==="quest") html += starter();
+  else if (ui.tab==="quest") html += questBoard(r);
+  else if (ui.tab==="stats") html += statsView(r);
+  else html += achView(r);
+  app.innerHTML = html;
+  document.getElementById("sync").textContent = syncMsg;
+}
+
+function hero(r){
+  const on = Math.floor(r.into / r.need * 20);
+  return `<section class="hero">
+    <div class="hero-top">
+      <div>
+        <div class="pname">${esc(state.name)} <button data-act="settings" aria-label="설정">설정</button></div>
+        <div class="title-chip">${r.rank}랭크 · ${r.title}</div>
+      </div>
+      ${crest(r.rank)}
+    </div>
+    <div class="lvrow">
+      <div><div class="lv-label">LV</div><div class="lv">${r.level}</div></div>
+      <div class="xp-total"><b class="num">${r.xp.toLocaleString()}</b><span>획득한 XP</span></div>
+    </div>
+    <div class="segs" aria-label="경험치 ${r.into}/${r.need}">${Array.from({length:20},(_,i)=>`<i class="${i<on?"on":""}"></i>`).join("")}</div>
+    <div class="xp-next"><span>레벨 ${r.level+1}까지 <b class="num">${r.need - r.into}</b> XP</span><span class="num">${r.into}/${r.need}</span></div>
+    <div class="hud">
+      <div><small>불꽃</small><b class="flame">${icon("flame",18)}<span>${r.dayStreak}</span><small style="color:var(--muted);letter-spacing:0">일</small></b></div>
+      <div><small>HP</small><b class="heart">${icon("heart",17)}<span>${r.hp}</span></b><div class="hpbar"><span style="width:${r.hp}%"></span></div></div>
+      <div><small>휴식권 (주)</small><b class="ticket">${icon("ticket",18)}<span>${Math.max(0,r.skipsLeft)}/${SKIPS_PER_WEEK}</span></b></div>
+    </div>
+  </section>`;
+}
+
+function nag(r){
+  const todo = r.todayList.filter(x=>x.st==="todo"), total = r.todayList.length;
+  if (!total) return "";
+  const now = new Date(), mins = 24*60 - (now.getHours()*60 + now.getMinutes());
+  const hh = Math.floor(mins/60), mm = mins%60, h = now.getHours();
+  const nowHM = `${pad(h)}:${pad(now.getMinutes())}`;
+  const late = todo.filter(x => x.q.time && x.q.time <= nowHM);
+  if (!todo.length) return `<div class="nag clear"><div class="ico">${icon("check",20)}</div><p><strong>오늘 퀘스트 전부 클리어</strong>불꽃 ${r.dayStreak}일째. 내일도 이 불을 지켜요.</p></div>`;
+  const lateTxt = late.length ? `<br><span class="late">${esc(late[0].q.name)}</span> 예정 시각(${late[0].q.time})이 지났어요${late.length>1?` 외 ${late.length-1}개`:""}.` : "";
+  if (h >= 22) return `<div class="nag alarm"><div class="ico">${icon("bell",20)}</div><p><strong>마감 ${hh}시간 ${mm}분 전! ${todo.length}개 남음</strong>자정이 지나면 HP −${todo.length*MISS_HP}${r.dayStreak?`, 불꽃 ${r.dayStreak}일이 위험해요`:""}.${lateTxt}</p></div>`;
+  if (h >= 18 || late.length) return `<div class="nag warn"><div class="ico">${icon("bell",20)}</div><p><strong>아직 ${todo.length}개 남았어요</strong>자정까지 ${hh}시간 ${mm}분.${lateTxt}</p></div>`;
+  return `<div class="nag"><div class="ico">${icon("flame",20,"var(--xp)")}</div><p><strong>오늘의 퀘스트 ${todo.length}개 대기 중</strong>하나만 깨도 불꽃이 이어져요.</p></div>`;
+}
+
+function questBoard(r){
+  const L = r.todayList, c = k => L.filter(x=>x.st===k).length;
+  const items = L.filter(x=>x.st===ui.sub);
+  const upcoming = state.quests.filter(q=>!q.archivedAt && !L.some(x=>x.q.id===q.id));
+  return `<div class="subtabs" role="tablist">
+      ${[["todo","해야 할 일"],["done","완료"],["skip","건너뜀"]].map(([k,l])=>`<button role="tab" aria-selected="${ui.sub===k}" data-sub="${k}">${l} <span class="num">${c(k)}</span></button>`).join("")}
+      <button class="add" data-act="new" aria-label="퀘스트 추가">+</button>
+    </div>
+    <div class="list">
+      ${items.length ? items.map(x=>questCard(x,r)).join("") : `<div class="empty">${ui.sub==="todo" ? (L.length ? "오늘 할 일 끝. 레벨업은 내일 또." : "오늘은 예정된 퀘스트가 없어요.") : ui.sub==="done" ? "아직 클리어한 퀘스트가 없어요." : "건너뛴 퀘스트가 없어요."}</div>`}
+    </div>
+    ${upcoming.length && ui.sub==="todo" ? `<div class="sec-h">오늘 쉬는 퀘스트</div><div class="list">${upcoming.map(q=>`<button class="q" data-edit="${q.id}" style="text-align:left;flex-direction:row;align-items:center;padding:10px 14px"><span class="q-icon" style="width:32px;height:32px">${icon(q.stat,18,STATS[q.stat].color)}</span><span style="flex:1">${esc(q.name)}</span><span style="color:var(--muted);font-size:13px">${daysLabel(q.days)}</span></button>`).join("")}</div>` : ""}`;
+}
+
+function questCard(x, r){
+  const q = x.q, s = r.q[q.id], st = STATS[q.stat];
+  const grew = s.grewOn && s.grewOn >= ymd(monday(new Date()));
+  const meta = [
+    `<span>${daysLabel(q.days)}</span>`,
+    `<span>${bars(DIFF[q.diff].n)}${DIFF[q.diff].name}</span>`,
+    x.target ? `<span>목표 <b class="num">${x.target}</b>${esc(q.unit)}${grew?` <span class="up">▲</span>`:""}</span>` : "",
+    q.time ? `<span class="num">${q.time}</span>` : "",
+    s.streak ? `<span class="flame">${icon("flame",12)}${s.streak}</span>` : ""
+  ].filter(Boolean).join(`<i class="sep"></i>`);
+  let actions = "";
+  if (x.st==="todo") actions = `<div class="q-actions"><button class="btn-clear" data-done="${q.id}">클리어 +${x.gain} XP</button><button class="btn-ghost" data-skip="${q.id}" ${r.skipsLeft<=0?"disabled":""}>건너뛰기</button></div>`;
+  else actions = `<div class="q-actions"><button class="btn-ghost" data-undo="${q.id}">${x.st==="done"?"클리어 취소":"되돌리기"}</button></div>`;
+  return `<article class="q ${x.st}">
+    <div class="q-head">
+      <span class="q-icon">${icon(q.stat,22,st.color)}</span>
+      <div class="q-main"><button class="q-name" data-edit="${q.id}">${esc(q.name)}</button><div class="q-meta">${meta}</div></div>
+      <span class="q-xp">${x.st==="done" ? `+${x.gain}` : `${st.name}`}</span>
+    </div>${actions}</article>`;
+}
+
+function starter(){
+  return `<section class="starter">
+    <h2>첫 퀘스트를 고르세요</h2>
+    <p>평소 지키려던 루틴으로 골라뒀어요. 탭해서 빼거나 넣고, 시작한 뒤에도 언제든 바꿀 수 있어요.</p>
+    ${STARTERS.map((s,i)=>`<button class="pick" aria-pressed="${ui.picks.has(i)}" data-pick="${i}">
+      <span class="box">${ui.picks.has(i)?icon("check",14):""}</span>
+      ${icon(s.stat,22,STATS[s.stat].color)}
+      <span class="t">${esc(s.name)}<small>${STATS[s.stat].name} · ${DIFF[s.diff].name} · ${daysLabel(s.days)}${s.target?` · ${s.target}${s.unit}${s.growth?"부터 매주 상승":""}`:""}</small></span>
+    </button>`).join("")}
+    <button class="btn-clear" data-act="startpack">모험 시작</button>
+    <button class="btn-ghost" data-act="new">직접 만들기</button>
+  </section>`;
+}
+
+function statsView(r){
+  const rows = Object.entries(STATS).map(([k,s])=>`<div class="statrow">${icon(k,24,s.color)}<span class="nm">${s.name}</span><span class="ln"></span><span class="gain">${r.statsWeek[k]?`▲${r.statsWeek[k]}`:""}</span><span class="val num">${10 + r.stats[k]}</span></div>`).join("");
+  const rate30 = r.d30.done + r.d30.miss ? Math.round(r.d30.done/(r.d30.done+r.d30.miss)*100) : null;
+  const t = parse(todayStr()), startW = addDays(monday(t), -7*15);
+  let cells = "";
+  for (let d = startW; d <= addDays(monday(t),6); d = addDays(d,1)){
+    const ds = ymd(d), h = r.heat[ds], fut = d > t;
+    let cls = "";
+    if (h && !fut){ cls = h.miss ? "miss" : h.ratio===0 ? "" : h.ratio<.34 ? "l1" : h.ratio<.67 ? "l2" : h.ratio<1 ? "l3" : "l4"; }
+    if (ds===todayStr()) cls += " today";
+    cells += `<i class="${cls}" title="${ds}${h?` · ${Math.round(h.ratio*100)}%`:""}" style="${fut?"opacity:.25":""}"></i>`;
+  }
+  const qs = state.quests.map(q=>{ const s=r.q[q.id]; if(!s) return ""; const tot=s.done+s.miss; const rate=tot?Math.round(s.done/tot*100):0;
+    return `<div class="qstat"><span class="n">${esc(q.name)}${q.archivedAt?` <small style="color:var(--dim)">(종료)</small>`:""}</span><span class="r num">${tot?rate+"%":"—"}</span>
+      <div class="bar"><span style="width:${rate}%"></span></div>
+      <span class="sub">완료 ${s.done} · 놓침 ${s.miss} · 건너뜀 ${s.skip} · 연속 ${s.streak}회 (최고 ${s.best})${q.target?` · 현재 목표 ${s.target}${esc(q.unit)}`:""}</span></div>`; }).join("");
+  return `<section>${rows}</section>
+    <div class="sec-h">얼마나 했고, 얼마나 빼먹었나</div>
+    <div class="tiles">
+      <div class="tile"><small>30일 달성률</small><b class="num">${rate30===null?"—":rate30+"%"}</b></div>
+      <div class="tile"><small>완료</small><b class="num" style="color:var(--ok)">${r.totalDone}</b></div>
+      <div class="tile"><small>놓침</small><b class="num" style="color:var(--hp)">${r.totalMiss}</b></div>
+      <div class="tile"><small>건너뜀</small><b class="num" style="color:var(--muted)">${r.totalSkip}</b></div>
+    </div>
+    <div class="sec-h">최근 16주</div>
+    <div class="heatwrap"><div class="heat">${cells}</div>
+      <div class="legend"><span><i style="background:var(--panel2)"></i>없음</span><span><i style="background:#5a2c12"></i>일부</span><span><i style="background:var(--xp)"></i>전부 클리어</span><span><i style="background:#3a1c1e"></i>전부 놓침</span></div></div>
+    <div class="sec-h">퀘스트별 기록</div>
+    <section>${qs || `<div class="empty">퀘스트를 추가하면 여기서 기록이 쌓여요.</div>`}</section>`;
+}
+
+function achView(r){
+  const A = [
+    ["star","첫 클리어","퀘스트 1회 클리어", r.totalDone>=1],
+    ["flame","불씨","3일 연속 불꽃", r.bestDay>=3],
+    ["flame","모닥불","7일 연속 불꽃", r.bestDay>=7],
+    ["flame","봉화","30일 연속 불꽃", r.bestDay>=30],
+    ["check","퍼펙트 데이","하루 퀘스트 전부 클리어", r.perfectDays>0 || r.perfectToday],
+    ["dis","철인","퍼펙트 데이 10회", r.perfectDays>=10],
+    ["str","강적 사냥꾼","어려움 퀘스트 10회", r.hardDone>=10],
+    ["foc","한계 돌파","매주 상승 목표 첫 레벨업", r.growths>0],
+    ["star","백전노장","총 100회 클리어", r.totalDone>=100],
+    ["int","탐험가","레벨 10 달성", r.level>=10],
+    ["wis","기사 서임","레벨 20 달성", r.level>=20],
+    ["heart","불굴","HP 0에서 다시 일어서기", r.faints>0]
+  ];
+  const got = A.filter(a=>a[3]).length;
+  const ev = r.events.slice(-12).reverse();
+  return `<div class="sec-h" style="margin-top:4px">랭크</div>
+    <div class="ranks">${RANKS.map(([k,l])=>`<div class="${k===r.rank?"cur":""}">${k}<small>Lv ${l}+</small></div>`).join("")}</div>
+    <div class="sec-h">업적 <span class="num" style="color:var(--muted);font-size:15px">${got}/${A.length}</span></div>
+    <div class="badges">${A.map(([i,n,d,ok])=>`<div class="badge ${ok?"on":"off"}">${icon(i,34,ok?"var(--gold)":"var(--muted)")}<b>${n}</b><small>${d}</small></div>`).join("")}</div>
+    <div class="sec-h">모험 일지</div>
+    ${ev.length ? ev.map(e=>`<div class="ev"><time>${e.d.slice(5).replace("-","/")}</time><span style="color:${e.k==="grow"?"var(--ok)":e.k==="faint"?"var(--hp)":"var(--fg)"}">${esc(e.t)}</span></div>`).join("") : `<div class="empty">놓친 퀘스트, 난이도 상승, 쓰러짐 같은 사건이 여기 기록돼요.</div>`}
+    <div class="sec-h">규칙</div>
+    <ul class="rules">
+      <li>클리어하면 XP를 얻어요. 쉬움 10 · 중간 20 · 어려움 35, 연속 클리어할수록 최대 +50%.</li>
+      <li>예정된 퀘스트를 자정까지 못 하면 HP −${MISS_HP}. 클리어하면 HP +${DONE_HP}.</li>
+      <li>HP가 0이 되면 쓰러져서 XP −${FAINT_XP}, HP 50으로 부활.</li>
+      <li>건너뛰기는 주 ${SKIPS_PER_WEEK}회. 벌점도 XP도 없어요.</li>
+      <li>'매주 상승' 퀘스트는 지난주 달성률 80% 이상이면 목표가 10%씩 올라가요.</li>
+      <li>하루에 하나라도 클리어하면 불꽃이 이어져요.</li>
+    </ul>`;
+}
+
+/* ---------- sheets ---------- */
+let sheetEl = null;
+function closeSheet(){ if (sheetEl){ sheetEl.remove(); sheetEl = null; } }
+function openSheet(inner, bind){
+  closeSheet();
+  sheetEl = document.createElement("div");
+  sheetEl.className = "scrim";
+  sheetEl.innerHTML = `<div class="sheet" role="dialog" aria-modal="true">${inner}</div>`;
+  sheetEl.addEventListener("click", e => { if (e.target === sheetEl) closeSheet(); });
+  document.body.appendChild(sheetEl);
+  bind(sheetEl);
+}
+function questSheet(id){
+  const q = id ? state.quests.find(x=>x.id===id) : {name:"", stat:"int", diff:"mid", days:[0,1,2,3,4,5,6], target:null, unit:"", growth:false, time:""};
+  const f = {stat:q.stat, diff:q.diff, days:new Set(q.days)};
+  openSheet(`<h3>${id?"퀘스트 편집":"새 퀘스트"}</h3>
+    <div class="field"><label for="f-name">퀘스트 이름</label><input id="f-name" type="text" maxlength="40" placeholder="예: 스페인어 Anki" value="${esc(q.name)}"></div>
+    <div class="field"><span>오르는 스탯</span><div class="chips" id="f-stat">${Object.entries(STATS).map(([k,s])=>`<button class="chip" data-v="${k}" aria-pressed="${f.stat===k}">${icon(k,15,"currentColor")}${s.name}</button>`).join("")}</div></div>
+    <div class="field"><span>난이도</span><div class="chips" id="f-diff">${Object.entries(DIFF).map(([k,d])=>`<button class="chip" data-v="${k}" aria-pressed="${f.diff===k}">${bars(d.n)}${d.name} · ${d.xp}XP</button>`).join("")}</div></div>
+    <div class="field"><span>반복 요일</span><div class="chips days" id="f-days">${[1,2,3,4,5,6,0].map(d=>`<button class="chip" data-v="${d}" aria-pressed="${f.days.has(d)}">${DOW[d]}</button>`).join("")}<button class="chip" data-all="1" style="width:auto;padding:0 12px">매일</button></div></div>
+    <div class="row2">
+      <div class="field"><label for="f-target">목표량 (선택)</label><input id="f-target" type="number" min="1" inputmode="numeric" placeholder="15" value="${q.target??""}"></div>
+      <div class="field"><label for="f-unit">단위</label><input id="f-unit" type="text" maxlength="8" placeholder="분, 페이지" value="${esc(q.unit)}"></div>
+    </div>
+    <div class="field"><label for="f-time">알림 기준 시각 (선택)</label><input id="f-time" type="time" value="${q.time||""}"></div>
+    <label class="toggle"><input id="f-growth" type="checkbox" ${q.growth?"checked":""}><span>매주 난이도 상승<small>지난주 80% 이상 해내면 목표량이 10%씩 늘어요. 목표량이 있어야 작동해요.</small></span></label>
+    <p class="err" id="f-err" hidden></p>
+    <div class="sheet-actions"><button class="btn-clear" id="f-save">${id?"저장":"퀘스트 추가"}</button><button class="btn-ghost" id="f-cancel">닫기</button></div>
+    ${id?`<button class="btn-ghost btn-del" id="f-del">퀘스트 종료</button>`:""}`, el => {
+    const chipGroup = (sel, single, key) => el.querySelectorAll(`${sel} .chip[data-v]`).forEach(b => b.onclick = () => {
+      if (single){ f[key] = b.dataset.v; el.querySelectorAll(`${sel} .chip[data-v]`).forEach(x=>x.setAttribute("aria-pressed", x===b)); }
+      else { const v = +b.dataset.v; f.days.has(v) ? f.days.delete(v) : f.days.add(v); b.setAttribute("aria-pressed", f.days.has(v)); }
+    });
+    chipGroup("#f-stat", true, "stat"); chipGroup("#f-diff", true, "diff"); chipGroup("#f-days", false);
+    el.querySelector("[data-all]").onclick = () => { [0,1,2,3,4,5,6].forEach(d=>f.days.add(d)); el.querySelectorAll("#f-days .chip[data-v]").forEach(x=>x.setAttribute("aria-pressed","true")); };
+    el.querySelector("#f-cancel").onclick = closeSheet;
+    el.querySelector("#f-save").onclick = () => {
+      const name = el.querySelector("#f-name").value.trim(), err = el.querySelector("#f-err");
+      if (!name){ err.textContent = "퀘스트 이름을 적어주세요."; err.hidden = false; return; }
+      if (!f.days.size){ err.textContent = "반복할 요일을 하나 이상 골라주세요."; err.hidden = false; return; }
+      const tv = parseInt(el.querySelector("#f-target").value,10);
+      const data = {name, stat:f.stat, diff:f.diff, days:[...f.days].sort(), target: tv>0?tv:null, unit: el.querySelector("#f-unit").value.trim(), time: el.querySelector("#f-time").value || "", growth: el.querySelector("#f-growth").checked};
+      if (id) Object.assign(q, data); else state.quests.push({id:uid(), created:todayStr(), ...data});
+      save(); closeSheet(); ui.tab="quest"; render(); toast(id?"저장했어요":"퀘스트를 추가했어요");
+    };
+    const del = el.querySelector("#f-del");
+    if (del) del.onclick = () => {
+      if (del.dataset.arm){ q.archivedAt = todayStr(); save(); closeSheet(); render(); toast("퀘스트를 종료했어요. 쌓은 XP는 그대로예요"); return; }
+      del.dataset.arm = "1"; del.textContent = "한 번 더 누르면 종료 (기록과 XP는 유지)";
+    };
+  });
+}
+/* ---------- notifications ---------- */
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const standalone = () => window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const pushSupported = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+let pushState = "unknown"; // on | off | denied | needs-install | unsupported
+
+async function refreshPushState(){
+  if (isIOS && !standalone()) pushState = "needs-install";
+  else if (!pushSupported()) pushState = "unsupported";
+  else if (Notification.permission === "denied") pushState = "denied";
+  else {
+    try { const reg = await navigator.serviceWorker.ready; const sub = await reg.pushManager.getSubscription(); pushState = sub ? "on" : "off"; }
+    catch(e){ pushState = "off"; }
+  }
+  if (!sheetEl) render();
+}
+function b64uToU8(s){ s = s.replace(/-/g,"+").replace(/_/g,"/"); while (s.length%4) s+="="; return Uint8Array.from(atob(s), c=>c.charCodeAt(0)); }
+async function enablePush(){
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm !== "granted"){ pushState = perm === "denied" ? "denied" : "off"; render(); toast("알림 권한이 꺼져 있어요"); return false; }
+    const {key} = await (await fetch("/api/vapid")).json();
+    if (!key){ toast("서버에 알림 키가 설정되지 않았어요 (README 3단계)"); return false; }
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) sub = await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:b64uToU8(key)});
+    const res = await api("/api/subscribe", {method:"POST", body: JSON.stringify({subscription: sub.toJSON()})});
+    if (!res.ok) throw new Error((await res.json()).error || res.status);
+    state.notify.enabled = true; save(); await upload();
+    pushState = "on"; render(); toast("알림을 켰어요");
+    return true;
+  } catch(e){ toast("알림을 켜지 못했어요: " + (e.message || e)); return false; }
+}
+async function disablePush(){
+  try {
+    const reg = await navigator.serviceWorker.ready; const sub = await reg.pushManager.getSubscription();
+    if (sub){ await api("/api/unsubscribe", {method:"POST", body: JSON.stringify({endpoint: sub.endpoint})}); await sub.unsubscribe(); }
+  } catch(e){}
+  pushState = "off"; render(); toast("이 기기 알림을 껐어요");
+}
+async function testPush(){
+  try { const r = await api("/api/test", {method:"POST"}); const j = await r.json(); toast(j.ok ? "테스트 알림을 보냈어요" : (j.error || "보내지 못했어요")); }
+  catch(e){ toast("서버에 연결하지 못했어요"); }
+}
+function pushCard(){
+  if (pushState === "on" || pushState === "unknown") return "";
+  if (pushState === "needs-install") return `<div class="nag warn"><div class="ico">${icon("bell",20)}</div><p><strong>알림을 받으려면 홈 화면에 추가하세요</strong>Safari 아래 공유 버튼 → '홈 화면에 추가' → 홈 화면의 퀘스트로그 아이콘으로 열기.</p></div>`;
+  if (pushState === "unsupported") return "";
+  if (pushState === "denied") return `<div class="nag"><div class="ico">${icon("bell",20)}</div><p><strong>알림이 차단돼 있어요</strong>설정 → 알림 → 퀘스트로그에서 허용해 주세요.</p></div>`;
+  return `<button class="nag warn" data-act="enablepush" style="width:100%;text-align:left"><div class="ico">${icon("bell",20)}</div><p><strong>알림 켜기</strong>퀘스트 시각과 마감 직전에 독촉 알림을 보내드려요. 탭해서 켜기.</p></button>`;
+}
+
+function settingsSheet(){
+  const n = state.notify;
+  const pushLabel = {on:"이 기기 알림 켜짐", off:"이 기기 알림 꺼짐", denied:"알림 차단됨 (기기 설정에서 허용)", "needs-install":"홈 화면에 추가해야 켤 수 있어요", unsupported:"이 브라우저는 알림을 지원하지 않아요", unknown:"확인 중"}[pushState];
+  openSheet(`<h3>설정</h3>
+    <div class="field"><label for="f-pname">플레이어 이름</label><input id="f-pname" type="text" maxlength="16" value="${esc(state.name)}"></div>
+    <div class="field"><span>알림</span>
+      <p style="margin:0;font-size:14px">${pushLabel}</p>
+      <div class="sheet-actions">
+        ${pushState==="on" ? `<button class="btn-ghost" id="s-test">테스트 알림</button><button class="btn-ghost" id="s-off">이 기기 끄기</button>` : pushState==="off" ? `<button class="btn-clear" id="s-on">알림 켜기</button>` : ""}
+      </div>
+    </div>
+    <label class="toggle"><input id="s-qt" type="checkbox" ${n.questTimes!==false?"checked":""}><span>퀘스트 시각 알림<small>퀘스트마다 정한 시각에 "할 시간"을 알려요.</small></span></label>
+    <label class="toggle"><input id="s-dl" type="checkbox" ${n.deadline!==false?"checked":""}><span>마감 독촉<small>남은 퀘스트가 있으면 21:00, 23:00, 23:45에 다시 알려요.</small></span></label>
+    <div class="field"><label for="s-key">기기 연결 코드</label>
+      <input id="s-key" type="text" value="${esc(KEY)}" autocomplete="off" spellcheck="false" style="font-family:var(--hud)">
+      <small style="color:var(--muted);font-size:12px">다른 기기에서 이 코드를 붙여넣고 저장하면 같은 기록을 써요. 코드를 아는 사람은 기록을 볼 수 있으니 공유하지 마세요.</small>
+      <button class="btn-ghost" id="s-copy">코드 복사</button>
+    </div>
+    <p class="err" id="s-err" hidden></p>
+    <div class="sheet-actions"><button class="btn-clear" id="p-save">저장</button><button class="btn-ghost" id="p-cancel">닫기</button></div>
+    <p class="sync" style="margin:0">${esc(syncMsg)}</p>`, el => {
+    el.querySelector("#p-cancel").onclick = closeSheet;
+    const on = el.querySelector("#s-on"), off = el.querySelector("#s-off"), test = el.querySelector("#s-test");
+    if (on) on.onclick = async () => { await enablePush(); settingsSheet(); };
+    if (off) off.onclick = async () => { await disablePush(); settingsSheet(); };
+    if (test) test.onclick = testPush;
+    el.querySelector("#s-copy").onclick = async () => {
+      try { await navigator.clipboard.writeText(KEY); toast("복사했어요"); } catch(e){ const i = el.querySelector("#s-key"); i.select(); }
+    };
+    el.querySelector("#p-save").onclick = async () => {
+      const newKey = el.querySelector("#s-key").value.trim(), err = el.querySelector("#s-err");
+      if (!/^[A-Za-z0-9_-]{20,64}$/.test(newKey)){ err.textContent = "연결 코드 형식이 맞지 않아요. 복사한 코드를 그대로 붙여넣어 주세요."; err.hidden = false; return; }
+      state.name = el.querySelector("#f-pname").value.trim() || "플레이어";
+      state.notify.questTimes = el.querySelector("#s-qt").checked;
+      state.notify.deadline = el.querySelector("#s-dl").checked;
+      if (newKey !== KEY){
+        KEY = newKey; try { localStorage.setItem(KEY_KEY, KEY); } catch(e){}
+        state.updatedAt = "";
+        await pull();
+        if (pushState === "on") await enablePush();
+        closeSheet(); render(); toast("다른 기기와 연결했어요");
+        return;
+      }
+      save(); closeSheet(); render();
+    };
+  });
+}
+
+/* ---------- fx ---------- */
+function toast(m){ const t = document.createElement("div"); t.className="toast"; t.textContent=m; document.body.appendChild(t); setTimeout(()=>t.remove(), 2200); }
+function floatXP(n){ const f = document.createElement("div"); f.className="float"; f.textContent=`+${n} XP`; document.body.appendChild(f); setTimeout(()=>f.remove(), 1200); }
+function levelUp(L, title){ const o = document.createElement("div"); o.className="lvup"; o.innerHTML=`<div><span>LEVEL UP</span><b>LV ${L}</b><span>${esc(title)}</span></div>`; document.body.appendChild(o); setTimeout(()=>o.remove(), 2300); }
+
+function setStatus(id, st){
+  const before = compute(), d = todayStr();
+  state.log[d] = state.log[d] || {};
+  if (st) state.log[d][id] = st; else delete state.log[d][id];
+  const after = compute();
+  save(); render();
+  const gain = after.xp - before.xp;
+  if (gain > 0) floatXP(gain);
+  if (after.level > before.level) setTimeout(()=>levelUp(after.level, after.rank !== before.rank ? `${after.rank}랭크 승급 · ${after.title}` : after.title), 350);
+  else if (st==="done" && !after.todayList.some(x=>x.st==="todo")) setTimeout(()=>toast("오늘 퀘스트 올클리어!"), 900);
+}
+
+/* ---------- events ---------- */
+app.addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  const ds = b.dataset;
+  if (ds.tab){ ui.tab = ds.tab; render(); }
+  else if (ds.sub){ ui.sub = ds.sub; render(); }
+  else if (ds.done) setStatus(ds.done, "done");
+  else if (ds.skip) setStatus(ds.skip, "skip");
+  else if (ds.undo) setStatus(ds.undo, null);
+  else if (ds.edit) questSheet(ds.edit);
+  else if (ds.pick !== undefined){ const i=+ds.pick; ui.picks.has(i)?ui.picks.delete(i):ui.picks.add(i); render(); }
+  else if (ds.act==="new") questSheet(null);
+  else if (ds.act==="settings") settingsSheet();
+  else if (ds.act==="enablepush") enablePush();
+  else if (ds.act==="startpack"){
+    if (!ui.picks.size){ toast("퀘스트를 하나 이상 골라주세요"); return; }
+    [...ui.picks].sort().forEach(i => state.quests.push({id:uid(), created:todayStr(), ...STARTERS[i], days:[...STARTERS[i].days]}));
+    save(); render(); toast("모험 시작! 첫 퀘스트를 깨보세요");
+  }
+});
+document.addEventListener("keydown", e => { if (e.key==="Escape") closeSheet(); });
+setInterval(() => { if (!sheetEl) render(); }, 60000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden && !sheetEl) render(); });
+render();
+
+/* ---------- boot ---------- */
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(()=>{});
+pull(); refreshPushState();
+document.addEventListener("visibilitychange", () => { if (!document.hidden) pull(); });
+window.addEventListener("online", pull);
+})();
+</script>
+</body>
+</html>

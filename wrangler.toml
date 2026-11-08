@@ -1,0 +1,24 @@
+name = "questlog"
+main = "src/worker.js"
+compatibility_date = "2025-09-01"
+
+# 화면 파일 (public 폴더)
+[assets]
+directory = "./public"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+# 기록·알림 구독 저장소. README 2단계에서 만든 id로 바꿔주세요.
+[[kv_namespaces]]
+binding = "QUESTLOG"
+id = "REPLACE_WITH_KV_ID"
+
+# 15분마다 알림 발송기 실행
+[triggers]
+crons = ["*/15 * * * *"]
+
+[vars]
+# README 3단계: node scripts/gen-vapid.mjs 가 출력한 공개키
+VAPID_PUBLIC_KEY = "REPLACE_WITH_VAPID_PUBLIC_KEY"
+# 알림 서비스가 문제 시 연락할 주소 (본인 메일)
+VAPID_SUBJECT = "mailto:you@example.com"
