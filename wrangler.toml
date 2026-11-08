@@ -8,10 +8,10 @@ directory = "./public"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
 
-# 기록·알림 구독 저장소. Cloudflare에서 만든 KV의 id로 바꿔주세요.
+# 기록·알림 구독 저장소 (Cloudflare KV)
 [[kv_namespaces]]
 binding = "QUESTLOG"
-id = "REPLACE_WITH_KV_ID"
+id = "1b9b872d5b3b4a3eac7556f85bfb32a3"
 
 # 15분마다 알림 발송기 실행
 [triggers]
